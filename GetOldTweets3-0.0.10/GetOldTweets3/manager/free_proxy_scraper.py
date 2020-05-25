@@ -1,6 +1,4 @@
-import scrapy
-
-
+import scrapy 
 
 ''' scrapy shell  
 
@@ -30,19 +28,20 @@ class free_proxy(scrapy.Spider):
         ]
         for url in urls:
             yield scrapy.Request(url=url, callback=self.parse)
- 
-    def get_proxies(self, response):
-        proxies=[]
+
+    def parse(self, response):
+        proxies = []
         table = response.xpath('//*[@id="proxylisttable"]')
         rows = table.xpath('//tr')
         for row in rows:
-            ip= row.xpath('td//text()')[0].extract()
-            port= row.xpath('td//text()')[1].extract()
-            proxies.append("%s:%s",ip,port)
+            proxy_Item=proxyItem()
+            ip = row.xpath('td//text()')[0].extract()
+            port = row.xpath('td//text()')[1].extract()
+            proxy_Item['url']=("%s:%s", ip, port)
+            proxies.append(proxy_Item)
 
-        return proxies    
+        return proxies 
+
+        
+    
             
-def test_Username():
-    proxies =free_proxy().get_proxies
-    assert proxies != None
-    print(proxies)

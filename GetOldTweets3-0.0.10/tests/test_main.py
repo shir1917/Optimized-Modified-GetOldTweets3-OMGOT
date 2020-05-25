@@ -9,7 +9,7 @@ if sys.version_info[0] < 3:
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import GetOldTweets3 as got
-
+import free_proxy_scraper as fps
 def test_Username():
     tweetCriteria = got.manager.TweetCriteria().setUsername('barackobama')\
                                                .setMaxTweets(1)
@@ -24,3 +24,7 @@ def test_QuerySearch():
     tweet = got.manager.TweetManager.getTweets(tweetCriteria)[0]
     assert '#europe' in tweet.hashtags.lower()
     assert '#refugees' in tweet.hashtags.lower()
+
+def test_fps():
+    fps1 = free_proxy()
+    print(fps1.parse)
