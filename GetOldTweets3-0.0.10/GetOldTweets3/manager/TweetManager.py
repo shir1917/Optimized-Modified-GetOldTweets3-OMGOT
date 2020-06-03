@@ -1,12 +1,24 @@
 # -*- coding: utf-8 -*-
 
-import json, re, datetime, sys, random, http.cookiejar
-import urllib.request, urllib.parse, urllib.error
+import datetime
+import http.cookiejar
+import json
+import re
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+
 from pyquery import PyQuery
+from .FreeProxy import FreeProxy
 from .. import models
+
+import random
+
 
 class TweetManager:
     """A class for accessing the Twitter's search engine"""
+
     def __init__(self):
         pass
 
@@ -20,6 +32,7 @@ class TweetManager:
         'Mozilla/5.0 (Windows NT 6.1; Trident/7.0; rv:11.0) like Gecko',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0 Safari/605.1.15',
     ]
+    proxies = getProxies()
 
     @staticmethod
     def getTweets(tweetCriteria, receiveBuffer=None, bufferLength=100, proxy=None, debug=False):
@@ -38,7 +51,8 @@ class TweetManager:
         resultsAux = []
         cookieJar = http.cookiejar.CookieJar()
         user_agent = random.choice(TweetManager.user_agents)
-
+        debug = True
+        #  proxies = getProxies()
         all_usernames = []
         usernames_per_batch = 20
 
@@ -53,22 +67,34 @@ class TweetManager:
         else:
             n_batches = 1
 
+        batch: int
         for batch in range(n_batches):  # process all_usernames by batches
             refreshCursor = ''
             batch_cnt_results = 0
-
+            # proxies = FreeProxy().get_proxies
             if all_usernames:  # a username in the criteria?
-                tweetCriteria.username = all_usernames[batch*usernames_per_batch:batch*usernames_per_batch+usernames_per_batch]
+                tweetCriteria.username = all_usernames[
+                                         batch * usernames_per_batch:batch * usernames_per_batch + usernames_per_batch]
 
             active = True
+
+            print('using %s for batch %d' % (proxy, batch))
             while active:
-                json = TweetManager.getJsonResponse(tweetCriteria, refreshCursor, cookieJar, proxy, user_agent, debug=debug)
+                try:
+                    proxy = random.choice(proxies)
+                    json = TweetManager.getJsonResponse(tweetCriteria, refreshCursor, cookieJar, proxy, user_agent,
+                                                        debug=debug)
+                except Exception as e:
+                    print(e)
+                    print('json could not be downloaded ')
+                    break
+                    pass
                 if len(json['items_html'].strip()) == 0:
                     break
 
                 refreshCursor = json['min_position']
                 scrapedTweets = PyQuery(json['items_html'])
-                #Remove incomplete tweets withheld by Twitter Guidelines
+                # Remove incomplete tweets withheld by Twitter Guidelines
                 scrapedTweets.remove('div.withheld-tweet')
                 tweets = scrapedTweets('div.js-stream-tweet')
 
@@ -85,19 +111,24 @@ class TweetManager:
 
                     tweet.username = usernames[0]
                     tweet.to = usernames[1] if len(usernames) >= 2 else None  # take the first recipient if many
-                    tweet.text = re.sub(r"\s+", " ", tweetPQ("p.js-tweet-text").text())\
+                    tweet.text = re.sub(r"\s+", " ", tweetPQ("p.js-tweet-text").text()) \
                         .replace('# ', '#').replace('@ ', '@').replace('$ ', '$')
-                    tweet.retweets = int(tweetPQ("span.ProfileTweet-action--retweet span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
-                    tweet.favorites = int(tweetPQ("span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
-                    tweet.replies = int(tweetPQ("span.ProfileTweet-action--reply span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
+                    tweet.retweets = int(
+                        tweetPQ("span.ProfileTweet-action--retweet span.ProfileTweet-actionCount").attr(
+                            "data-tweet-stat-count").replace(",", ""))
+                    tweet.favorites = int(
+                        tweetPQ("span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr(
+                            "data-tweet-stat-count").replace(",", ""))
+                    tweet.replies = int(tweetPQ("span.ProfileTweet-action--reply span.ProfileTweet-actionCount").attr(
+                        "data-tweet-stat-count").replace(",", ""))
                     tweet.id = tweetPQ.attr("data-tweet-id")
                     tweet.permalink = 'https://twitter.com' + tweetPQ.attr("data-permalink-path")
                     tweet.author_id = int(tweetPQ("a.js-user-profile-link").attr("data-user-id"))
 
                     dateSec = int(tweetPQ("small.time span.js-short-timestamp").attr("data-time"))
                     tweet.date = datetime.datetime.fromtimestamp(dateSec, tz=datetime.timezone.utc)
-                    tweet.formatted_date = datetime.datetime.fromtimestamp(dateSec, tz=datetime.timezone.utc)\
-                                                            .strftime("%a %b %d %X +0000 %Y")
+                    tweet.formatted_date = datetime.datetime.fromtimestamp(dateSec, tz=datetime.timezone.utc) \
+                        .strftime("%a %b %d %X +0000 %Y")
                     tweet.mentions = " ".join(re.compile('(@\\w*)').findall(tweet.text))
                     tweet.hashtags = " ".join(re.compile('(#\\w*)').findall(tweet.text))
 
@@ -118,7 +149,7 @@ class TweetManager:
 
                     results.append(tweet)
                     resultsAux.append(tweet)
-                    
+
                     if receiveBuffer and len(resultsAux) >= bufferLength:
                         receiveBuffer(resultsAux)
                         resultsAux = []
@@ -160,7 +191,7 @@ class TweetManager:
             usernames_ = [u.lstrip('@') for u in tweetCriteria.username if u]
             tweetCriteria.username = {u.lower() for u in usernames_ if u}
 
-            usernames = [' from:'+u for u in sorted(tweetCriteria.username)]
+            usernames = [' from:' + u for u in sorted(tweetCriteria.username)]
             if usernames:
                 urlGetData += ' OR'.join(usernames)
 
@@ -194,14 +225,15 @@ class TweetManager:
         ]
 
         if proxy:
-            opener = urllib.request.build_opener(urllib.request.ProxyHandler({'http': proxy, 'https': proxy}), urllib.request.HTTPCookieProcessor(cookieJar))
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({'http': proxy, 'https': proxy}),
+                                                 urllib.request.HTTPCookieProcessor(cookieJar))
         else:
             opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookieJar))
         opener.addheaders = headers
 
         if debug:
             print(url)
-            print('\n'.join(h[0]+': '+h[1] for h in headers))
+            print('\n'.join(h[0] + ': ' + h[1] for h in headers))
 
         try:
             response = opener.open(url)
@@ -209,7 +241,8 @@ class TweetManager:
         except Exception as e:
             print("An error occured during an HTTP request:", str(e))
             print("Try to open in browser: https://twitter.com/search?q=%s&src=typd" % urllib.parse.quote(urlGetData))
-            sys.exit()
+            raise e
+            # sys.exit()
 
         try:
             s_json = jsonResponse.decode()
