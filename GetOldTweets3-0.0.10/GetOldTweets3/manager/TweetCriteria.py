@@ -1,3 +1,6 @@
+from typing import Type
+
+
 class TweetCriteria:
     """Search parameters class"""
 
@@ -24,6 +27,10 @@ class TweetCriteria:
         """
         self.username = username
         return self
+
+    @property
+    def __class__(self: _T) -> Type[_T]:
+        return super().__class__()
 
     def setSince(self, since):
         """Set a lower bound date in UTC

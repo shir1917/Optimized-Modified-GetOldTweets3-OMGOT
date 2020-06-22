@@ -47,6 +47,7 @@ if sys.version_info[0] < 3:
 
 import GetOldTweets3 as got
 
+
 def main(argv):
     if len(argv) == 0:
         print('You must pass some parameters. Use \"-h\" to help.')
@@ -70,7 +71,7 @@ def main(argv):
                                               "output=",
                                               "debug"))
 
-        tweetCriteria = got.manager.TweetCriteria()
+        tweetCriteria = manager.TweetCriteria()
         outputFileName = "output_got.csv"
 
         debug = False
@@ -142,12 +143,12 @@ def main(argv):
 
         if debug:
             print(' '.join(sys.argv))
-            print("GetOldTweets3", got.__version__)
+            print("GetOldTweets3", __version__)
 
         if username_files:
             for uf in username_files:
                 if not os.path.isfile(uf):
-                    raise Exception("File not found: %s"%uf)
+                    raise Exception("File not found: %s" % uf)
                 with open(uf) as f:
                     data = f.read()
                     data = re.sub('(?m)#.*?$', '', data)  # remove comments
@@ -159,8 +160,8 @@ def main(argv):
         if usernames:
             if len(usernames) > 1:
                 tweetCriteria.username = usernames
-                if len(usernames)>20 and tweetCriteria.maxTweets > 0:
-                    maxtweets_ = (len(usernames) // 20 + (len(usernames)%20>0)) * tweetCriteria.maxTweets
+                if len(usernames) > 20 and tweetCriteria.maxTweets > 0:
+                    maxtweets_ = (len(usernames) // 20 + (len(usernames) % 20 > 0)) * tweetCriteria.maxTweets
                     print("Warning: due to multiple username batches `maxtweets' set to %i" % maxtweets_)
             else:
                 tweetCriteria.username = usernames.pop()
@@ -169,22 +170,23 @@ def main(argv):
         outputFile.write('date,username,to,replies,retweets,favorites,text,geo,mentions,hashtags,id,permalink\n')
 
         cnt = 0
+
         def receiveBuffer(tweets):
             nonlocal cnt
 
             for t in tweets:
                 data = [t.date.strftime("%Y-%m-%d %H:%M:%S"),
-                    t.username,
-                    t.to or '',
-                    t.replies,
-                    t.retweets,
-                    t.favorites,
-                    '"'+t.text.replace('"','""')+'"',
-                    t.geo,
-                    t.mentions,
-                    t.hashtags,
-                    t.id,
-                    t.permalink]
+                        t.username,
+                        t.to or '',
+                        t.replies,
+                        t.retweets,
+                        t.favorites,
+                        '"' + t.text.replace('"', '""') + '"',
+                        t.geo,
+                        t.mentions,
+                        t.hashtags,
+                        t.id,
+                        t.permalink]
                 data[:] = [i if isinstance(i, str) else str(i) for i in data]
                 outputFile.write(','.join(data) + '\n')
 
@@ -192,12 +194,12 @@ def main(argv):
             cnt += len(tweets)
 
             if sys.stdout.isatty():
-                print("\rSaved %i"%cnt, end='', flush=True)
+                print("\rSaved %i" % cnt, end='', flush=True)
             else:
                 print(cnt, end=' ', flush=True)
 
         print("Downloading tweets...")
-        got.manager.TweetManager.getTweets(tweetCriteria, receiveBuffer, debug=debug)
+        manager.TweetManager.getTweets(tweetCriteria, receiveBuffer, debug=debug)
 
     except getopt.GetoptError as err:
         print('Arguments parser error, try -h')
@@ -215,6 +217,7 @@ def main(argv):
             outputFile.close()
             print()
             print('Done. Output file generated "%s".' % outputFileName)
+
 
 if __name__ == '__main__':
     main(sys.argv[1:])

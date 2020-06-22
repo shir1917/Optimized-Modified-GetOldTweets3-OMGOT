@@ -10,8 +10,8 @@ import urllib.parse
 import urllib.request
 
 from pyquery import PyQuery
-from .FreeProxy import FreeProxy
-from .. import models
+from manager.FreeProxy import FreeProxy
+import models
 
 import random
 
@@ -28,14 +28,17 @@ class TweetManager:
         'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:61.0) Gecko/20100101 Firefox/61.0',
         'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:63.0) Gecko/20100101 Firefox/63.0',
         'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36',
-        'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 '
+        'Safari/537.36',
         'Mozilla/5.0 (Windows NT 6.1; Trident/7.0; rv:11.0) like Gecko',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0 Safari/605.1.15',
     ]
-    proxies = getProxies()
+
+    # fp = FreeProxy()
+    # proxies = fp.getProxies()
 
     @staticmethod
-    def getTweets(tweetCriteria, receiveBuffer=None, bufferLength=100, proxy=None, debug=False):
+    def getTweets(tweetCriteria, receiveBuffer=None, bufferLength=100, proxy=None, debug=True, proxies=None):
         """Get tweets that match the tweetCriteria parameter
         A static method.
 
@@ -46,6 +49,7 @@ class TweetManager:
         bufferLength: int, the number of tweets to pass to `receiveBuffer' function
         proxy: str, a proxy server to use
         debug: bool, output debug information
+        proxies: list of proxy urls
         """
         results = []
         resultsAux = []
@@ -55,7 +59,7 @@ class TweetManager:
         #  proxies = getProxies()
         all_usernames = []
         usernames_per_batch = 20
-
+        # fp = FreeProxy()
         if hasattr(tweetCriteria, 'username'):
             if type(tweetCriteria.username) == str or not hasattr(tweetCriteria.username, '__iter__'):
                 tweetCriteria.username = [tweetCriteria.username]
@@ -71,7 +75,7 @@ class TweetManager:
         for batch in range(n_batches):  # process all_usernames by batches
             refreshCursor = ''
             batch_cnt_results = 0
-            # proxies = FreeProxy().get_proxies
+            proxies = fp.get_proxies()
             if all_usernames:  # a username in the criteria?
                 tweetCriteria.username = all_usernames[
                                          batch * usernames_per_batch:batch * usernames_per_batch + usernames_per_batch]
@@ -87,10 +91,11 @@ class TweetManager:
                 except Exception as e:
                     print(e)
                     print('json could not be downloaded ')
-                    break
+                    # break
                     pass
                 if len(json['items_html'].strip()) == 0:
-                    break
+                    # break
+                    pass
 
                 refreshCursor = json['min_position']
                 scrapedTweets = PyQuery(json['items_html'])
@@ -99,7 +104,8 @@ class TweetManager:
                 tweets = scrapedTweets('div.js-stream-tweet')
 
                 if len(tweets) == 0:
-                    break
+                    # break
+                    pass
 
                 for tweetHTML in tweets:
                     tweetPQ = PyQuery(tweetHTML)

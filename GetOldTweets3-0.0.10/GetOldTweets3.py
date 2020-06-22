@@ -37,14 +37,16 @@ GetOldTweets3 --querysearch "bitcoin" --near "Berlin, Germany" --within 25km --m
 # Example 7 - Get tweets by geo coordinates:
 GetOldTweets3 --querysearch "museum" --near "55.75, 37.61" --within 40km --maxtweets 10 
 """
-
+import copy
 import os, sys, re, getopt
 import traceback
+from typing import TextIO
 
 if sys.version_info[0] < 3:
     raise Exception("Python 2.x is not supported. Please upgrade to 3.x")
 
 import GetOldTweets3 as got
+
 
 def main(argv):
     if len(argv) == 0:
@@ -146,7 +148,7 @@ def main(argv):
         if username_files:
             for uf in username_files:
                 if not os.path.isfile(uf):
-                    raise Exception("File not found: %s"%uf)
+                    raise Exception("File not found: %s" % uf)
                 with open(uf) as f:
                     data = f.read()
                     data = re.sub('(?m)#.*?$', '', data)  # remove comments
@@ -158,32 +160,44 @@ def main(argv):
         if usernames:
             if len(usernames) > 1:
                 tweetCriteria.username = usernames
-                if len(usernames)>20 and tweetCriteria.maxTweets > 0:
-                    maxtweets_ = (len(usernames) // 20 + (len(usernames)%20>0)) * tweetCriteria.maxTweets
+                if len(usernames) > 20 and tweetCriteria.maxTweets > 0:
+                    maxtweets_ = (len(usernames) // 20 + (len(usernames) % 20 > 0)) * tweetCriteria.maxTweets
                     print("Warning: due to multiple username batches `maxtweets' set to %i" % maxtweets_)
             else:
                 tweetCriteria.username = usernames.pop()
 
-        outputFile = open(outputFileName, "w+", encoding="utf8")
+        with open('proxies.txt') as f:
+            content = f.readlines()
+        proxies = [x.strip() for x in content]
+
+        outputFile: TextIO = open(outputFileName, "w+", encoding="utf8")
         outputFile.write('date,username,to,replies,retweets,favorites,text,geo,mentions,hashtags,id,permalink\n')
 
         cnt = 0
+
+        def createTwitCretireaForEachUser(userNames,twitCretiria):
+            twitCretirias ={}
+            for name in userNames:
+               twitCretiria = copy.deepcopy(twitCretiria)
+               twitCretiria.username = name
+               twitCretirias.
+
         def receiveBuffer(tweets):
             nonlocal cnt
 
             for t in tweets:
                 data = [t.date.strftime("%Y-%m-%d %H:%M:%S"),
-                    t.username,
-                    t.to or '',
-                    t.replies,
-                    t.retweets,
-                    t.favorites,
-                    '"'+t.text.replace('"','""')+'"',
-                    t.geo,
-                    t.mentions,
-                    t.hashtags,
-                    t.id,
-                    t.permalink]
+                        t.username,
+                        t.to or '',
+                        t.replies,
+                        t.retweets,
+                        t.favorites,
+                        '"' + t.text.replace('"', '""') + '"',
+                        t.geo,
+                        t.mentions,
+                        t.hashtags,
+                        t.id,
+                        t.permalink]
                 data[:] = [i if isinstance(i, str) else str(i) for i in data]
                 outputFile.write(','.join(data) + '\n')
 
@@ -191,12 +205,12 @@ def main(argv):
             cnt += len(tweets)
 
             if sys.stdout.isatty():
-                print("\rSaved %i"%cnt, end='', flush=True)
+                print("\rSaved %i" % cnt, end='', flush=True)
             else:
                 print(cnt, end=' ', flush=True)
 
         print("Downloading tweets...")
-        got.manager.TweetManager.getTweets(tweetCriteria, receiveBuffer, debug=debug)
+        got.manager.TweetManager.getTweets(tweetCriteria, receiveBuffer, debug=debug, proxies=proxies)
 
     except getopt.GetoptError as err:
         print('Arguments parser error, try -h')
@@ -214,6 +228,7 @@ def main(argv):
             outputFile.close()
             print()
             print('Done. Output file generated "%s".' % outputFileName)
+
 
 if __name__ == '__main__':
     main(sys.argv[1:])
